@@ -1,4 +1,4 @@
-# GPGPU-Parallel Re-indexing of Triangle Meshes with Duplicate-Vertex and Unused-Vertex Removal
+# GPGPU-Parallel Re-indexing of Triangle (or general unstructured) Meshes with Duplicate-Vertex and Unused-Vertex Removal
 
 TL/DR: This repository contains sample code for my "paper" of the same title.
 
@@ -70,7 +70,7 @@ vertices, and almost each other vertex is replicated 4 times; the
 resulting meshes--no matter whether the scalar reference, the
 CPU-parallel TBB method, or the CUDA methos is used---should contain
 the same quads, but should contain no more duplicate or unused
-vertices.  removed.
+vertices.
 
 Called without parameters, the generated executable runs with
 1000x1000 such squares; otherwise the first cmdline parameter is
