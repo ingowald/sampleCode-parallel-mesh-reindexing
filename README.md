@@ -1,6 +1,7 @@
 # GPGPU-Parallel Re-indexing of Triangle (or other Polygonal or General-Unstructured) Meshes with Duplicate-Vertex and Unused-Vertex Removal
 
-TL/DR: This repository contains sample code for my "paper" of the same title.
+TL/DR: This repository contains sample code for the accompanying 
+whitepaper of the same title.
 
 ## Background
 
