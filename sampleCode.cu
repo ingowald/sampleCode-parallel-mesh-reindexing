@@ -199,7 +199,7 @@ Mesh remesh_cpu_parallel(const Mesh &in)
      });
   
   double t1 = getCurrentTime();
-  std::cout << "# time for remesh_cpu_serial: " << prettyDouble(t1-t0) << "s" << std::endl;
+  std::cout << "# time for remesh_cpu_parallel: " << prettyDouble(t1-t0) << "s" << std::endl;
   return out;
 }
 
