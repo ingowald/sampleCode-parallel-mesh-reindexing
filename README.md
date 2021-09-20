@@ -34,7 +34,7 @@ problem before; albeit I could not find their solutoins.
 As such, if you found this paper (and this accmpanying sample code): 
 I hope it'll save you some re-inventing of your own.
 
-## Building
+## Building the Sample Code
 
 Given how simple the accompanying code is I decided to not include a
 CMake-file that would make it look like a larger project than it is,
@@ -49,16 +49,27 @@ need several smaller kernels that for readability I did not want to
 throw into the same file as the one that contains the CPU reference
 code, sample generator, etc. There is, however, no particular reason
 that would require two separate files, so feel free to merge, or pick
-only what you want.
+only what you want. 
 
-## LICENSE
+The `owl` directory contains a few (header-only) helper files that I
+used for convenience, such as having various vector types for vertices
+and indices (that work in both CPP and CUDA), or for some CPU-side
+`parallel_for`, pretty-printing, etc. These are taken from my OWL
+project (https://github.com/owl-project/owl), but replacing these
+types with your own vector types (e.g., CUDA's `float2`, `int4`, etc)
+should be trivial.
 
-License to this code is Apache 2.0; which is basically, in plain
-english: do as you wish with this code, but you can't hold me
-responsible for anything that goes wrong. (for the full original text:
-http://www.apache.org/licenses/LICENSE-2.0),
+## TBB
 
-## Usage and Sample Code
+For the parallel CPU code I used TBB (using the
+`owl::common::parallel_for` from `owl/common/parallel/parallel_for.h`
+included as in the `owl/` subdir), as well as directly through
+`tbb::parallel_sort()` etc. If you only need the CUDA method you can
+simply remove that TBB code; if you do intend to build with TBB
+enabled you need to install and link to TBB; in linux this can be done
+with, e.g., `sudo apt install tbb-dev` under Ubuntu 20.04).
+
+## Running the Sample Code
 
 I would assume the main usage for this code would be to copy-n-paste
 (and adapt to different vertex/index types); however, the code as is
@@ -79,3 +90,11 @@ supposed to be the N for generating NxN such squares.
 
 For verification I also write out the generated OBJ files; these can
 be large, so for large N you may want to disable this.
+
+## LICENSE
+
+License to this code is Apache 2.0; which is basically, in plain
+english: do as you wish with this code, but you can't hold me
+responsible for anything that goes wrong. (for the full original text:
+http://www.apache.org/licenses/LICENSE-2.0),
+

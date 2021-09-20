@@ -238,7 +238,7 @@ void saveMesh(const std::string &fileName,
 int main(int ac, char **av)
 {
   // ==================================================================
-  Mesh testMesh = generateTestMesh((av == 1) ? 1000 : std::stoi(av[1]));
+  Mesh testMesh = generateTestMesh((ac == 1) ? 1000 : std::stoi(av[1]));
   std::cout << "generated test mesh:" << std::endl;
   std::cout << "#vertices (flt2) = " << prettyNumber(testMesh.vtx.size()) << std::endl;
   std::cout << "#indices  (int4) = " << prettyNumber(testMesh.idx.size()) << std::endl;
