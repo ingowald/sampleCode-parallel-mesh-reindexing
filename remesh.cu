@@ -1,3 +1,19 @@
+// ======================================================================== //
+// Copyright 2021-2021 Ingo Wald                                            //
+//                                                                          //
+// Licensed under the Apache License, Version 2.0 (the "License");          //
+// you may not use this file except in compliance with the License.         //
+// You may obtain a copy of the License at                                  //
+//                                                                          //
+//     http://www.apache.org/licenses/LICENSE-2.0                           //
+//                                                                          //
+// Unless required by applicable law or agreed to in writing, software      //
+// distributed under the License is distributed on an "AS IS" BASIS,        //
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. //
+// See the License for the specific language governing permissions and      //
+// limitations under the License.                                           //
+// ======================================================================== //
+
 #include <owl/common/math/vec.h>
 #include <owl/common/parallel/parallel_for.h>
 
@@ -49,7 +65,7 @@
 using namespace owl::common;
 
 
-
+/*! kernel that marks each used vertex as 'used' */
 __global__
 void markUsed(int *isUsed, int *idx, int num)
 {
@@ -58,17 +74,8 @@ void markUsed(int *isUsed, int *idx, int num)
     isUsed[idx[tid]] = true;
 }
 
-__global__
-void setNoDup(int *noDup, vec2f *vtx, int num)
-{
-  int tid = threadIdx.x+blockIdx.x*blockDim.x;
-  if (tid < num)
-    noDup[tid]
-      = (tid == 0)
-      ? 1
-      : (vtx[tid] != vtx[tid-1]);
-}
-
+/*! replacec each vertex that's not marked as 'used' with the first
+  vertex of the first trianlge (which is obviously used) */
 __global__
 void replaceUnused(vec2f *out_vtx,
                    int   *isUsed,
@@ -82,6 +89,21 @@ void replaceUnused(vec2f *out_vtx,
   out_vtx[tid] = in_vtx[isUsed[tid]
                         ? tid
                         : (in_idx[0])];
+}
+
+/*! marks each vertex as whether it's the first instance of that
+vertex' particular value in the (sorted) vertex array. a vertex is the
+first one of that value if it's either the first entry in the array,
+or different from its predecessor */
+__global__
+void setNoDup(int *noDup, vec2f *vtx, int num)
+{
+  int tid = threadIdx.x+blockIdx.x*blockDim.x;
+  if (tid < num)
+    noDup[tid]
+      = (tid == 0)
+      ? 1
+      : (vtx[tid] != vtx[tid-1]);
 }
 
 __global__
@@ -113,6 +135,8 @@ template<typename T>
   };
 
 
+/*! helper function to debug/illustrate: prints a given device
+    vector's length and elements */
 template<typename T>
 void print(const char *tag,
            const thrust::device_vector<T> &vec)
@@ -123,36 +147,28 @@ void print(const char *tag,
   std::cout << std::endl;
 }
 
-// remesh using cuda; modifying the arrays in place (but not shrinking
-// the d_vtx array; vtxCount is input vertex count on the way in, and
-// num actively used vertices on the way out; d_idx[] gets modified in
-// place. Most d_vtx and d_idx must be device arrays
+/* remesh using cuda; modifying the arrays in place (but not shrinking
+   the d_vtx array; vtxCount is input vertex count on the way in, and
+   num actively used vertices on the way out; d_idx[] gets modified in
+   place. Most d_vtx and d_idx must be device arrays */
 void remesh_cuda(thrust::device_vector<vec2f> &vtx,
                  thrust::device_vector<int>   &idx)
 {
   thrust::device_vector<int> isUsed(vtx.size());
   thrust::fill(isUsed.begin(),isUsed.end(),0);
 
-  // print("vtx in",vtx);
-  // print("idx in",idx);
-  
   markUsed<<<divRoundUp((int)idx.size(),1024),1024>>>
     (thrust::raw_pointer_cast(isUsed.data()),
      thrust::raw_pointer_cast(idx.data()),
      idx.size());
-  //cudaDeviceSynchronize();
-  // print("used\t",isUsed);
   
   thrust::device_vector<vec2f> tmp_vtx(vtx.size());
-  // print("pre-remunused",tmp_vtx);
   replaceUnused<<<divRoundUp((int)tmp_vtx.size(),1024),1024>>>
     (thrust::raw_pointer_cast(tmp_vtx.data()),
      thrust::raw_pointer_cast(isUsed.data()),
      thrust::raw_pointer_cast(vtx.data()),
      thrust::raw_pointer_cast(idx.data()),
      vtx.size());
-  //cudaDeviceSynchronize();
-  // print("post-remunused",tmp_vtx);
   
   // ==================================================================
   // now, sort, and keep track of permutation done in sort
@@ -161,9 +177,7 @@ void remesh_cuda(thrust::device_vector<vec2f> &vtx,
   thrust::device_vector<int> orgID(vtx.size());
   thrust::sequence(orgID.begin(),orgID.end());
 
-  // print("unsortedvtx",tmp_vtx);
   thrust::stable_sort_by_key(tmp_vtx.begin(),tmp_vtx.end(),orgID.data());
-  // print("sorted vtx",tmp_vtx);
 
   // compute no dup array
   thrust::device_vector<int> noDup(vtx.size());
@@ -171,8 +185,6 @@ void remesh_cuda(thrust::device_vector<vec2f> &vtx,
     (thrust::raw_pointer_cast(noDup.data()),
      thrust::raw_pointer_cast(tmp_vtx.data()),
      tmp_vtx.size());
-  //cudaDeviceSynchronize();
-  // print("noDup",noDup);
   
   // postfix sum, and subtract one from each element
   thrust::device_vector<int> newIdx(vtx.size());
@@ -180,17 +192,15 @@ void remesh_cuda(thrust::device_vector<vec2f> &vtx,
   thrust::transform(newIdx.begin(),newIdx.end(),newIdx.begin(),subtract_one<int>());
   cudaDeviceSynchronize();
 
-  // print("newIdx",newIdx);
 
   // get new num vertices
   int newN = newIdx.back()+1;
-  // PRINT(newN);
   
   vtx.resize(newN);
   // ... and write new vertex array (we're writing back into vtx,
   // that's what we return to the app
   thrust::scatter(tmp_vtx.begin(),tmp_vtx.end(),newIdx.begin(),vtx.begin());
-  // print("new vtx",vtx);
+
   // ==================================================================
   // new, clean vertex array created; this one contains neither
   // duplicates nor unused vertices. now about those indices...
@@ -201,9 +211,6 @@ void remesh_cuda(thrust::device_vector<vec2f> &vtx,
     (thrust::raw_pointer_cast(perm.data()),
      thrust::raw_pointer_cast(orgID.data()),
      orgID.size());
-  // print("orgID",orgID);
-  // print("perm",perm);
-  // print("newIdx",newIdx);
   
   // first, compute table to reverse the permutation
   translateVertices<<<divRoundUp(int(idx.size()),1024),1024>>>
@@ -211,6 +218,4 @@ void remesh_cuda(thrust::device_vector<vec2f> &vtx,
      thrust::raw_pointer_cast(perm.data()),
      thrust::raw_pointer_cast(newIdx.data()),
      idx.size());
-                    
-  // print("idx",idx);
 }
